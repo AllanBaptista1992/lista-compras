@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import sqlite3
 from datetime import datetime
-import os
 
 # =====================================
 # CONFIGURAÇÃO DA PÁGINA
@@ -14,11 +14,48 @@ st.set_page_config(
 )
 
 # =====================================
+# CONEXÃO COM O BANCO
+# =====================================
+conn = sqlite3.connect(
+    "lista_compras.db",
+    check_same_thread=False
+)
+
+cursor = conn.cursor()
+
+# =====================================
+# CRIA AS TABELAS
+# =====================================
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS compras(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    data TEXT,
+    produto TEXT,
+    quantidade INTEGER,
+    valor_unitario REAL,
+    total_produto REAL
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS historico(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    data TEXT,
+    total_compra REAL
+)
+""")
+
+conn.commit()
+
+# =====================================
 # TEMA
 # =====================================
 tema = st.sidebar.radio(
     "Tema",
-    ["☀ Claro", "🌙 Escuro"]
+    [
+        "☀ Claro",
+        "🌙 Escuro"
+    ]
 )
 
 if tema == "🌙 Escuro":
@@ -32,7 +69,8 @@ if tema == "🌙 Escuro":
     }
 
     </style>
-    """, unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True)
 
 # =====================================
 # MENU
@@ -44,9 +82,7 @@ pagina = st.sidebar.radio(
     [
 
         "🛒 Compras",
-
         "📊 Dashboard",
-
         "📅 Histórico"
 
     ]
@@ -54,120 +90,41 @@ pagina = st.sidebar.radio(
 )
 
 # =====================================
-# PASTA DADOS
-# =====================================
-BASE_DIR = os.path.dirname(
-    os.path.abspath(__file__)
-)
-
-PASTA_DADOS = os.path.join(
-    BASE_DIR,
-    "dados"
-)
-
-os.makedirs(
-    PASTA_DADOS,
-    exist_ok=True
-)
-
-arquivo_diario = os.path.join(
-    PASTA_DADOS,
-    "historico_diario.csv"
-)
-
-arquivo_mensal = os.path.join(
-    PASTA_DADOS,
-    "historico_mensal.csv"
-)
-
-arquivo_anual = os.path.join(
-    PASTA_DADOS,
-    "historico_anual.csv"
-)
-
-# =====================================
-# CRIA CSV AUTOMATICAMENTE
-# =====================================
-if not os.path.exists(arquivo_diario):
-
-    pd.DataFrame(
-        columns=[
-            "Data",
-            "Total_Gasto"
-        ]
-    ).to_csv(
-        arquivo_diario,
-        index=False
-    )
-
-if not os.path.exists(arquivo_mensal):
-
-    pd.DataFrame({
-
-        "Mes":[
-
-            "Janeiro",
-            "Fevereiro",
-            "Março",
-            "Abril",
-            "Maio",
-            "Junho",
-            "Julho",
-            "Agosto",
-            "Setembro",
-            "Outubro",
-            "Novembro",
-            "Dezembro"
-
-        ],
-
-       "Total_Gasto":[0.0]*12
-
-    }).to_csv(
-
-        arquivo_mensal,
-
-        index=False
-
-    )
-
-if not os.path.exists(arquivo_anual):
-
-    pd.DataFrame({
-
-        "Ano":[datetime.now().year],
-
-        "Total_Gasto":[0.0]
-
-    }).to_csv(
-
-        arquivo_anual,
-
-        index=False
-
-    )
-
-# =====================================
-# SESSION
+# SESSION STATE
 # =====================================
 if "compras" not in st.session_state:
-
     st.session_state.compras = []
+
+if "produto_input" not in st.session_state:
+    st.session_state.produto_input = ""
+
+if "quantidade_input" not in st.session_state:
+    st.session_state.quantidade_input = 1
+
+if "valor_input" not in st.session_state:
+    st.session_state.valor_input = 0.0
 
 # =====================================
 # PÁGINA COMPRAS
 # =====================================
 if pagina == "🛒 Compras":
 
-    st.title("🛒 Lista de Compras")
+    st.title(
+        "🛒 Lista de Compras"
+    )
 
     st.divider()
 
     with st.form("form_produto"):
 
         produto = st.text_input(
+
             "Produto",
-            placeholder="Ex: Arroz"
+
+            placeholder="Ex: Arroz",
+
+            key="produto_input"
+
         )
 
         quantidade = st.number_input(
@@ -176,19 +133,19 @@ if pagina == "🛒 Compras":
 
             min_value=1,
 
-            value=1
+            key="quantidade_input"
 
         )
 
         valor = st.number_input(
 
             "Valor Unitário (R$)",
-            
+
             min_value=0.0,
 
-            value=0.0,
+            format="%.2f",
 
-            format="%.2f"
+            key="valor_input"
 
         )
 
@@ -197,9 +154,8 @@ if pagina == "🛒 Compras":
             "➕ Adicionar Produto",
 
             use_container_width=True
-           
+
         )
-       
 
     if adicionar:
 
@@ -216,7 +172,8 @@ if pagina == "🛒 Compras":
             "Total Produto": total_produto
 
         })
-       
+
+        
         st.rerun()
 
     # =====================================
@@ -226,7 +183,9 @@ if pagina == "🛒 Compras":
 
         st.divider()
 
-        st.subheader("🛒 Produtos")
+        st.subheader(
+            "🛒 Produtos"
+        )
 
         df = pd.DataFrame(
             st.session_state.compras
@@ -240,9 +199,9 @@ if pagina == "🛒 Compras":
             f"💰 Total da Compra: R$ {total_geral:.2f}"
         )
 
-        # ==============================
+        # =====================================
         # LISTA DOS PRODUTOS
-        # ==============================
+        # =====================================
         for i, item in enumerate(
             st.session_state.compras
         ):
@@ -295,9 +254,9 @@ if pagina == "🛒 Compras":
 
                         st.rerun()
 
-        # ==============================
+        # =====================================
         # EDITAR PRODUTO
-        # ==============================
+        # =====================================
         if "produto_editar" in st.session_state:
 
             indice = st.session_state.produto_editar
@@ -365,9 +324,9 @@ if pagina == "🛒 Compras":
 
         col1, col2 = st.columns(2)
 
-        # ==============================
+        # =====================================
         # LIMPAR LISTA
-        # ==============================
+        # =====================================
         with col1:
 
             if st.button(
@@ -377,13 +336,14 @@ if pagina == "🛒 Compras":
                 use_container_width=True
 
             ):
-                st.session_state.compras = []
-                st.rerun()
-                
 
-        # ==============================
+                st.session_state.compras = []
+
+                st.rerun()
+
+        # =====================================
         # FINALIZAR COMPRA
-        # ==============================
+        # =====================================
         with col2:
 
             if st.button(
@@ -394,295 +354,246 @@ if pagina == "🛒 Compras":
 
             ):
 
-                hoje = datetime.now().strftime(
+                data_atual = datetime.now().strftime(
                     "%d/%m/%Y"
                 )
 
-                # HISTÓRICO DIÁRIO
-                historico_diario = pd.read_csv(
-                    arquivo_diario
-                )
+                # Salvar produtos
+                for item in st.session_state.compras:
 
-                nova_linha = pd.DataFrame({
+                    cursor.execute(
 
-                    "Data":[hoje],
+                        """
+                        INSERT INTO compras(
+                            data,
+                            produto,
+                            quantidade,
+                            valor_unitario,
+                            total_produto
+                        )
+                        VALUES(?,?,?,?,?)
+                        """,
 
-                    "Total_Gasto":[total_geral]
+                        (
 
-                })
+                            data_atual,
 
-                historico_diario = pd.concat(
+                            item["Produto"],
 
-                    [
+                            item["Quantidade"],
 
-                        historico_diario,
+                            item["Valor Unitário"],
 
-                        nova_linha
+                            item["Total Produto"]
 
-                    ],
-
-                    ignore_index=True
-
-                )
-
-                historico_diario.to_csv(
-
-                    arquivo_diario,
-
-                    index=False
-
-                )
-
-                # HISTÓRICO MENSAL
-                historico_mensal = pd.read_csv(
-                    arquivo_mensal
-                )
-
-                meses = {
-
-                    1:"Janeiro",
-                    2:"Fevereiro",
-                    3:"Março",
-                    4:"Abril",
-                    5:"Maio",
-                    6:"Junho",
-                    7:"Julho",
-                    8:"Agosto",
-                    9:"Setembro",
-                    10:"Outubro",
-                    11:"Novembro",
-                    12:"Dezembro"
-
-                }
-
-                mes_atual = meses[
-                    datetime.now().month
-                ]
-
-                historico_mensal.loc[
-
-                    historico_mensal["Mes"]
-                    == mes_atual,
-
-                    "Total_Gasto"
-
-                ] += total_geral
-
-                historico_mensal.to_csv(
-
-                    arquivo_mensal,
-
-                    index=False
-
-                )
-
-                # HISTÓRICO ANUAL
-                historico_anual = pd.read_csv(
-                    arquivo_anual
-                )
-
-                ano_atual = datetime.now().year
-
-                if ano_atual not in historico_anual["Ano"].values:
-
-                    nova_linha = pd.DataFrame({
-
-                        "Ano":[ano_atual],
-
-                        "Total_Gasto":[0.0]
-
-                    })
-
-                    historico_anual = pd.concat(
-
-                        [
-
-                            historico_anual,
-
-                            nova_linha
-
-                        ],
-
-                        ignore_index=True
+                        )
 
                     )
 
-                historico_anual.loc[
+                # Salvar total da compra
+                cursor.execute(
 
-                    historico_anual["Ano"]
-                    == ano_atual,
+                    """
+                    INSERT INTO historico(
+                        data,
+                        total_compra
+                    )
+                    VALUES(?,?)
+                    """,
 
-                    "Total_Gasto"
+                    (
 
-                ] += total_geral
+                        data_atual,
 
-                historico_anual.to_csv(
+                        total_geral
 
-                    arquivo_anual,
-
-                    index=False
+                    )
 
                 )
+
+                conn.commit()
+
                 st.session_state.compras = []
-                st.rerun()
+
                 st.success(
                     "✅ Compra salva com sucesso!"
                 )
 
+                st.rerun()
 
 # =====================================
 # DASHBOARD
 # =====================================
 elif pagina == "📊 Dashboard":
 
-    st.title("📊 Dashboard")
-
-    historico_diario = pd.read_csv(
-        arquivo_diario
+    st.title(
+        "📊 Dashboard"
     )
 
-    historico_mensal = pd.read_csv(
-        arquivo_mensal
+    historico = pd.read_sql_query(
+
+        "SELECT * FROM historico",
+
+        conn
+
     )
 
-    historico_anual = pd.read_csv(
-        arquivo_anual
-    )
+    if historico.empty:
 
-    # ==============================
-    # TOTAL DO DIA
-    # ==============================
-    hoje = datetime.now().strftime(
-        "%d/%m/%Y"
-    )
+        st.info(
+            "Nenhuma compra registrada."
+        )
 
-    total_dia = 0
+    else:
 
-    if not historico_diario.empty:
+        historico["data"] = pd.to_datetime(
 
-        total_dia = historico_diario.loc[
-            historico_diario["Data"] == hoje,
-            "Total_Gasto"
+            historico["data"],
+
+            format="%d/%m/%Y"
+
+        )
+
+        hoje = datetime.now().date()
+
+        mes_atual = datetime.now().month
+
+        ano_atual = datetime.now().year
+
+        total_dia = historico.loc[
+
+            historico["data"].dt.date == hoje,
+
+            "total_compra"
+
         ].sum()
 
-    # ==============================
-    # TOTAL DO MÊS
-    # ==============================
-    meses = {
+        total_mes = historico.loc[
 
-        1:"Janeiro",
-        2:"Fevereiro",
-        3:"Março",
-        4:"Abril",
-        5:"Maio",
-        6:"Junho",
-        7:"Julho",
-        8:"Agosto",
-        9:"Setembro",
-        10:"Outubro",
-        11:"Novembro",
-        12:"Dezembro"
+            historico["data"].dt.month == mes_atual,
 
-    }
+            "total_compra"
 
-    mes_atual = meses[
-        datetime.now().month
-    ]
+        ].sum()
 
-    total_mes = historico_mensal.loc[
-        historico_mensal["Mes"] == mes_atual,
-        "Total_Gasto"
-    ].sum()
+        total_ano = historico.loc[
 
-    # ==============================
-    # TOTAL DO ANO
-    # ==============================
-    ano_atual = datetime.now().year
+            historico["data"].dt.year == ano_atual,
 
-    total_ano = historico_anual.loc[
-        historico_anual["Ano"] == ano_atual,
-        "Total_Gasto"
-    ].sum()
+            "total_compra"
 
-    # ==============================
-    # CARDS
-    # ==============================
-    col1, col2, col3 = st.columns(3)
+        ].sum()
 
-    with col1:
+        col1, col2, col3 = st.columns(3)
 
-        st.metric(
-            "📅 Hoje",
-            f"R$ {total_dia:.2f}"
+        with col1:
+
+            st.metric(
+
+                "📅 Hoje",
+
+                f"R$ {total_dia:.2f}"
+
+            )
+
+        with col2:
+
+            st.metric(
+
+                "🗓 Mês",
+
+                f"R$ {total_mes:.2f}"
+
+            )
+
+        with col3:
+
+            st.metric(
+
+                "📆 Ano",
+
+                f"R$ {total_ano:.2f}"
+
+            )
+
+        st.divider()
+
+        # ==========================
+        # GASTOS POR MÊS
+        # ==========================
+        gastos_mes = historico.copy()
+
+        gastos_mes["Mês"] = gastos_mes["data"].dt.strftime("%m/%Y")
+
+        gastos_mes = gastos_mes.groupby(
+
+            "Mês"
+
+        )["total_compra"].sum().reset_index()
+
+        st.subheader(
+
+            "📊 Gastos por Mês"
+
         )
 
-    with col2:
+        fig_mes = px.bar(
 
-        st.metric(
-            "🗓 Mês",
-            f"R$ {total_mes:.2f}"
+            gastos_mes,
+
+            x="Mês",
+
+            y="total_compra",
+
+            text_auto=".2f"
+
         )
 
-    with col3:
+        st.plotly_chart(
 
-        st.metric(
-            "📆 Ano",
-            f"R$ {total_ano:.2f}"
+            fig_mes,
+
+            use_container_width=True
+
         )
 
-    st.divider()
+        # ==========================
+        # GASTOS POR ANO
+        # ==========================
+        gastos_ano = historico.copy()
 
-    # ==============================
-    # GRÁFICO MENSAL
-    # ==============================
-    st.subheader(
-        "📊 Gastos por Mês"
-    )
+        gastos_ano["Ano"] = gastos_ano["data"].dt.year
 
-    grafico_mes = px.bar(
+        gastos_ano = gastos_ano.groupby(
 
-        historico_mensal,
+            "Ano"
 
-        x="Mes",
+        )["total_compra"].sum().reset_index()
 
-        y="Total_Gasto",
+        st.subheader(
 
-        text_auto=".2f"
+            "📆 Gastos por Ano"
 
-    )
+        )
 
-    st.plotly_chart(
+        fig_ano = px.pie(
 
-        grafico_mes,
+            gastos_ano,
 
-        use_container_width=True
+            names="Ano",
 
-    )
+            values="total_compra"
 
-    # ==============================
-    # GRÁFICO ANUAL
-    # ==============================
-    st.subheader(
-        "📆 Gastos por Ano"
-    )
+        )
 
-    grafico_ano = px.pie(
+        st.plotly_chart(
 
-        historico_anual,
+            fig_ano,
 
-        names="Ano",
+            use_container_width=True
 
-        values="Total_Gasto"
+        )
 
-    )
-
-    st.plotly_chart(
-
-        grafico_ano,
-
-        use_container_width=True
-
-    )
 
 # =====================================
 # HISTÓRICO
@@ -693,25 +604,31 @@ elif pagina == "📅 Histórico":
         "📅 Histórico"
     )
 
-    historico_diario = pd.read_csv(
-        arquivo_diario
+    historico = pd.read_sql_query(
+
+        "SELECT * FROM historico",
+
+        conn
+
     )
 
-    historico_mensal = pd.read_csv(
-        arquivo_mensal
-    )
+    compras = pd.read_sql_query(
 
-    historico_anual = pd.read_csv(
-        arquivo_anual
+        "SELECT * FROM compras",
+
+        conn
+
     )
 
     st.subheader(
-        "📅 Histórico Diário"
+
+        "💰 Histórico das Compras"
+
     )
 
     st.dataframe(
 
-        historico_diario,
+        historico,
 
         use_container_width=True
 
@@ -720,83 +637,54 @@ elif pagina == "📅 Histórico":
     st.divider()
 
     st.subheader(
-        "🗓 Histórico Mensal"
+
+        "🛒 Produtos Comprados"
+
     )
 
     st.dataframe(
 
-        historico_mensal,
+        compras,
 
         use_container_width=True
 
     )
 
+    st.divider()
+
+    # =====================================
+    # LIMPAR HISTÓRICO
+    # =====================================
     if st.button(
-        "🗑 Limpar Histórico Mensal",
-        use_container_width=True,
-        key="limpar_historico_mensal"
+
+        "🗑 Limpar Todo Histórico",
+
+        use_container_width=True
+
     ):
 
-        # Limpar histórico mensal
-        historico_mensal = pd.DataFrame({
+        cursor.execute(
 
-            "Mes":[
-                "Janeiro",
-                "Fevereiro",
-                "Março",
-                "Abril",
-                "Maio",
-                "Junho",
-                "Julho",
-                "Agosto",
-                "Setembro",
-                "Outubro",
-                "Novembro",
-                "Dezembro"
-            ],
+            "DELETE FROM historico"
 
-            "Total_Gasto":[0.0]*12
-
-        })
-
-        historico_mensal.to_csv(
-            arquivo_mensal,
-            index=False
         )
 
-        # Limpar histórico anual
-        historico_anual = pd.DataFrame({
+        cursor.execute(
 
-            "Ano":[datetime.now().year],
+            "DELETE FROM compras"
 
-            "Total_Gasto":[0.0]
-
-        })
-
-        historico_anual.to_csv(
-            arquivo_anual,
-            index=False
         )
+
+        conn.commit()
 
         st.success(
-            "Histórico mensal e anual limpos com sucesso!"
+
+            "Histórico apagado com sucesso!"
+
         )
 
         st.rerun()
 
-    st.divider()
-
-    st.subheader(
-        "📆 Histórico Anual"
-    )
-
-    st.dataframe(
-
-        historico_anual,
-
-        use_container_width=True
-
-    )
 
 # =====================================
 # RODAPÉ
@@ -804,5 +692,7 @@ elif pagina == "📅 Histórico":
 st.divider()
 
 st.caption(
-    "🛒 Sistema de Lista de Compras"
+
+    "🛒 Sistema de Lista de Compras com SQLite"
+
 )
