@@ -1,261 +1,153 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 import sqlite3
 from datetime import datetime
-import plotly.express as px
 
 # =====================================
 # CONFIGURAÇÃO DA PÁGINA
 # =====================================
 st.set_page_config(
-
     page_title="Lista de Compras",
-
     page_icon="🛒",
-
     layout="wide"
-
 )
 
 # =====================================
-# CSS
-# =====================================
-st.markdown(
-
-    """
-<style>
-
-/* Espaçamento */
-.block-container{
-
-    padding-top:1rem;
-
-    padding-bottom:1rem;
-
-    padding-left:1rem;
-
-    padding-right:1rem;
-
-}
-
-/* Botões */
-.stButton button{
-
-    border-radius:10px;
-
-}
-
-/* Dashboard */
-[data-testid="metric-container"]{
-
-    border-radius:15px;
-
-    padding:15px;
-
-}
-
-/* Celular */
-@media (max-width:768px){
-
-    .block-container{
-
-        padding-left:0.5rem;
-
-        padding-right:0.5rem;
-
-    }
-
-}
-
-</style>
-""",
-
-    unsafe_allow_html=True
-
-)
-
-# =====================================
-# BANCO SQLITE
+# CONEXÃO COM O BANCO
 # =====================================
 conn = sqlite3.connect(
-
     "lista_compras.db",
-
     check_same_thread=False
-
 )
 
 cursor = conn.cursor()
 
 # =====================================
-# TABELA COMPRAS
+# CRIA AS TABELAS
 # =====================================
-cursor.execute(
-
-    """
+cursor.execute("""
 CREATE TABLE IF NOT EXISTS compras(
-
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-
     data TEXT,
-
     produto TEXT,
-
     quantidade INTEGER,
-
     valor_unitario REAL,
-
     total_produto REAL
-
 )
-"""
+""")
 
-)
-
-# =====================================
-# TABELA HISTÓRICO
-# =====================================
-cursor.execute(
-
-    """
+cursor.execute("""
 CREATE TABLE IF NOT EXISTS historico(
-
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-
     data TEXT,
-
     total_compra REAL
-
 )
-"""
-
-)
+""")
 
 conn.commit()
+
+# =====================================
+# TEMA
+# =====================================
+tema = st.sidebar.radio(
+    "Tema",
+    [
+        "☀ Claro",
+        "🌙 Escuro"
+    ]
+)
+
+if tema == "🌙 Escuro":
+
+    st.markdown("""
+    <style>
+
+    .stApp{
+        background-color:#1E1E1E;
+        color:white;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True)
+
+# =====================================
+# MENU
+# =====================================
+pagina = st.sidebar.radio(
+
+    "Menu",
+
+    [
+
+        "🛒 Compras",
+        "📊 Dashboard",
+        "📅 Histórico"
+
+    ]
+
+)
 
 # =====================================
 # SESSION STATE
 # =====================================
 if "compras" not in st.session_state:
-
     st.session_state.compras = []
 
-if "indice_edicao" not in st.session_state:
+if "produto_input" not in st.session_state:
+    st.session_state.produto_input = ""
 
-    st.session_state.indice_edicao = None
+if "quantidade_input" not in st.session_state:
+    st.session_state.quantidade_input = 1
 
-if "form_key" not in st.session_state:
-
-    st.session_state.form_key = 0
+if "valor_input" not in st.session_state:
+    st.session_state.valor_input = 0.0
 
 # =====================================
-# MENU LATERAL
+# PÁGINA COMPRAS
 # =====================================
-with st.sidebar:
+if pagina == "🛒 Compras":
 
     st.title(
         "🛒 Lista de Compras"
     )
 
-    pagina = st.radio(
-
-        "Menu",
-
-        [
-
-            "🛒 Lista de Compras",
-
-            "📊 Dashboard",
-
-            "📅 Histórico"
-
-        ]
-
-    )
-
     st.divider()
 
-    tema = st.selectbox(
-
-        "🎨 Tema",
-
-        [
-
-            "Claro",
-
-            "Escuro"
-
-        ]
-
-    )
-
-# =====================================
-# TEMA ESCURO
-# =====================================
-if tema == "Escuro":
-
-    st.markdown(
-
-        """
-        <style>
-
-        .stApp{
-
-            background-color:#0E1117;
-
-            color:white;
-
-        }
-
-        </style>
-        """,
-
-        unsafe_allow_html=True
-
-    )
-
-# =====================================
-# LISTA DE COMPRAS
-# =====================================
-if pagina == "🛒 Lista de Compras":
-
-    st.markdown(
-        "## 🛒 Lista de Compras"
-    )
-
-    with st.form(
-        f"form_produto_{st.session_state.form_key}"
-    ):
+    with st.form("form_produto"):
 
         produto = st.text_input(
-            "Produto"
+
+            "Produto",
+
+            placeholder="Ex: Arroz",
+
+            key="produto_input"
+
         )
 
-        col1, col2 = st.columns(2)
+        quantidade = st.number_input(
 
-        with col1:
+            "Quantidade",
 
-            quantidade = st.number_input(
+            min_value=1,
 
-                "Quantidade",
+            key="quantidade_input"
 
-                min_value=1,
+        )
 
-                step=1
+        valor = st.number_input(
 
-            )
+            "Valor Unitário (R$)",
 
-        with col2:
+            min_value=0.0,
 
-            valor = st.number_input(
+            format="%.2f",
 
-                "Valor Unitário (R$)",
+            key="valor_input"
 
-                min_value=0.0,
-
-                format="%.2f"
-
-            )
+        )
 
         adicionar = st.form_submit_button(
 
@@ -265,236 +157,277 @@ if pagina == "🛒 Lista de Compras":
 
         )
 
-    # =====================================
-    # ADICIONAR
-    # =====================================
     if adicionar:
 
-        if produto.strip() != "":
+        total_produto = quantidade * valor
 
-            total_produto = quantidade * valor
+        st.session_state.compras.append({
 
-            st.session_state.compras.append(
+            "Produto": produto.title(),
 
-                {
+            "Quantidade": quantidade,
 
-                    "Produto": produto.title(),
+            "Valor Unitário": valor,
 
-                    "Quantidade": quantidade,
+            "Total Produto": total_produto
 
-                    "Valor Unitário": valor,
+        })
 
-                    "Total Produto": total_produto
-
-                }
-
-            )
-
-            st.session_state.form_key += 1
-
-            st.rerun()
-
-        else:
-
-            st.warning(
-                "Informe o produto."
-            )
-
-    st.divider()
+        
+        st.rerun()
 
     # =====================================
-    # TABELA
+    # MOSTRAR PRODUTOS
     # =====================================
-    if st.session_state.compras:
-
-        st.subheader(
-            "Produtos Adicionados"
-        )
-
-        h1, h2, h3, h4, h5, h6 = st.columns(
-            [3, 1, 1.5, 1.5, 0.7, 0.7]
-        )
-
-        h1.markdown("**Produto**")
-        h2.markdown("**Qtde**")
-        h3.markdown("**Valor Unit.**")
-        h4.markdown("**Total**")
-        h5.markdown("**❌**")
+    if len(st.session_state.compras) > 0:
 
         st.divider()
 
-        total_geral = 0
+        st.subheader(
+            "🛒 Produtos"
+        )
 
+        df = pd.DataFrame(
+            st.session_state.compras
+        )
+
+        total_geral = df[
+            "Total Produto"
+        ].sum()
+
+        st.success(
+            f"💰 Total da Compra: R$ {total_geral:.2f}"
+        )
+
+        # =====================================
+        # LISTA DOS PRODUTOS
+        # =====================================
         for i, item in enumerate(
             st.session_state.compras
         ):
 
-            total_geral += item[
-                "Total Produto"
-            ]
+            with st.container(border=True):
 
-            c1, c2, c3, c4, c5 = st.columns(
-                [3, 1, 1.5, 1.5, 1.5]
-            )
+                col1, col2, col3, col4, col5, col6 = st.columns(
+                    [3,1,1,1,0.5,0.5]
+                )
 
-            c1.write(
-                item["Produto"]
-            )
-
-            c2.write(
-                item["Quantidade"]
-            )
-
-            c3.write(
-                f'R$ {item["Valor Unitário"]:.2f}'
-            )
-
-            c4.write(
-                f'R$ {item["Total Produto"]:.2f}'
-            )
-
-            with c5:
-
-                if st.button(
-
-                    "❌",
-
-                    key=f"excluir_{i}"
-
-                ):
-
-                    st.session_state.compras.pop(
-                        i
+                with col1:
+                    st.write(
+                        f"**{item['Produto']}**"
                     )
 
-                    st.rerun()
+                with col2:
+                    st.write(
+                        item["Quantidade"]
+                    )
+
+                with col3:
+                    st.write(
+                        f"R$ {item['Valor Unitário']:.2f}"
+                    )
+
+                with col4:
+                    st.write(
+                        f"R$ {item['Total Produto']:.2f}"
+                    )
+
+                # EDITAR
+                with col5:
+
+                    if st.button(
+                        "✏",
+                        key=f"editar_{i}"
+                    ):
+
+                        st.session_state.produto_editar = i
+
+                # EXCLUIR
+                with col6:
+
+                    if st.button(
+                        "❌",
+                        key=f"excluir_{i}"
+                    ):
+
+                        st.session_state.compras.pop(i)
+
+                        st.rerun()
+
+        # =====================================
+        # EDITAR PRODUTO
+        # =====================================
+        if "produto_editar" in st.session_state:
+
+            indice = st.session_state.produto_editar
 
             st.divider()
 
-        st.subheader(
+            st.subheader(
+                "✏ Editar Produto"
+            )
 
-            f"💰 Total da Compra: R$ {total_geral:.2f}"
+            novo_nome = st.text_input(
 
-        )
+                "Produto",
+
+                value=st.session_state.compras[indice]["Produto"]
+
+            )
+
+            nova_quantidade = st.number_input(
+
+                "Quantidade",
+
+                min_value=1,
+
+                value=int(
+                    st.session_state.compras[indice]["Quantidade"]
+                )
+
+            )
+
+            novo_valor = st.number_input(
+
+                "Valor Unitário",
+
+                min_value=0.0,
+
+                value=float(
+                    st.session_state.compras[indice]["Valor Unitário"]
+                )
+
+            )
+
+            if st.button(
+                "💾 Salvar Alterações"
+            ):
+
+                st.session_state.compras[indice] = {
+
+                    "Produto": novo_nome.title(),
+
+                    "Quantidade": nova_quantidade,
+
+                    "Valor Unitário": novo_valor,
+
+                    "Total Produto":
+                    nova_quantidade * novo_valor
+
+                }
+
+                del st.session_state.produto_editar
+
+                st.rerun()
+
+        st.divider()
 
         col1, col2 = st.columns(2)
-
-        with col1:
-
-            limpar_lista = st.button(
-
-                "🧹 Limpar Lista",
-
-                use_container_width=True,
-
-                key="btn_limpar_lista"
-
-            )
-
-        with col2:
-
-            finalizar_compra = st.button(
-
-                "✅ Finalizar Compra",
-
-                use_container_width=True,
-
-                key="btn_finalizar"
-
-            )
 
         # =====================================
         # LIMPAR LISTA
         # =====================================
-        if limpar_lista:
+        with col1:
 
-            st.session_state.compras = []
+            if st.button(
 
-            st.rerun()
+                "🧹 Limpar Lista",
+
+                use_container_width=True
+
+            ):
+
+                st.session_state.compras = []
+
+                st.rerun()
 
         # =====================================
         # FINALIZAR COMPRA
         # =====================================
-        if finalizar_compra:
+        with col2:
 
-            data_atual = datetime.now().strftime(
-                "%d/%m/%Y"
-            )
+            if st.button(
 
-            for item in st.session_state.compras:
+                "✅ Finalizar Compra",
 
+                use_container_width=True
+
+            ):
+
+                data_atual = datetime.now().strftime(
+                    "%d/%m/%Y"
+                )
+
+                # Salvar produtos
+                for item in st.session_state.compras:
+
+                    cursor.execute(
+
+                        """
+                        INSERT INTO compras(
+                            data,
+                            produto,
+                            quantidade,
+                            valor_unitario,
+                            total_produto
+                        )
+                        VALUES(?,?,?,?,?)
+                        """,
+
+                        (
+
+                            data_atual,
+
+                            item["Produto"],
+
+                            item["Quantidade"],
+
+                            item["Valor Unitário"],
+
+                            item["Total Produto"]
+
+                        )
+
+                    )
+
+                # Salvar total da compra
                 cursor.execute(
 
                     """
-                    INSERT INTO compras
-                    (
+                    INSERT INTO historico(
                         data,
-                        produto,
-                        quantidade,
-                        valor_unitario,
-                        total_produto
+                        total_compra
                     )
-
-                    VALUES
-                    (?, ?, ?, ?, ?)
+                    VALUES(?,?)
                     """,
 
                     (
 
                         data_atual,
 
-                        item["Produto"],
-
-                        item["Quantidade"],
-
-                        item["Valor Unitário"],
-
-                        item["Total Produto"]
+                        total_geral
 
                     )
 
                 )
 
-            cursor.execute(
+                conn.commit()
 
-                """
-                INSERT INTO historico
-                (
-                    data,
-                    total_compra
+                st.session_state.compras = []
+
+                st.success(
+                    "✅ Compra salva com sucesso!"
                 )
 
-                VALUES
-                (?, ?)
-                """,
-
-                (
-
-                    data_atual,
-
-                    total_geral
-
-                )
-
-            )
-
-            conn.commit()
-
-            st.session_state.compras = []
-
-            st.success(
-                "Compra salva com sucesso!"
-            )
-
-            st.rerun()
+                st.rerun()
 
 # =====================================
 # DASHBOARD
 # =====================================
 elif pagina == "📊 Dashboard":
 
-    st.markdown(
-        "## 📊 Dashboard"
+    st.title(
+        "📊 Dashboard"
     )
 
     historico = pd.read_sql_query(
@@ -585,21 +518,23 @@ elif pagina == "📊 Dashboard":
 
         st.divider()
 
-        # =====================================
+        # ==========================
         # GASTOS POR MÊS
-        # =====================================
+        # ==========================
         gastos_mes = historico.copy()
 
-        gastos_mes["Mês"] = gastos_mes["data"].dt.strftime(
-            "%m/%Y"
-        )
+        gastos_mes["Mês"] = gastos_mes["data"].dt.strftime("%m/%Y")
 
         gastos_mes = gastos_mes.groupby(
+
             "Mês"
+
         )["total_compra"].sum().reset_index()
 
         st.subheader(
-            "📈 Gastos por Mês"
+
+            "📊 Gastos por Mês"
+
         )
 
         fig_mes = px.bar(
@@ -622,19 +557,23 @@ elif pagina == "📊 Dashboard":
 
         )
 
-        # =====================================
+        # ==========================
         # GASTOS POR ANO
-        # =====================================
+        # ==========================
         gastos_ano = historico.copy()
 
         gastos_ano["Ano"] = gastos_ano["data"].dt.year
 
         gastos_ano = gastos_ano.groupby(
+
             "Ano"
+
         )["total_compra"].sum().reset_index()
 
         st.subheader(
-            "📊 Gastos por Ano"
+
+            "📆 Gastos por Ano"
+
         )
 
         fig_ano = px.pie(
@@ -661,8 +600,8 @@ elif pagina == "📊 Dashboard":
 # =====================================
 elif pagina == "📅 Histórico":
 
-    st.markdown(
-        "## 📅 Histórico"
+    st.title(
+        "📅 Histórico"
     )
 
     historico = pd.read_sql_query(
@@ -682,7 +621,9 @@ elif pagina == "📅 Histórico":
     )
 
     st.subheader(
+
         "💰 Histórico das Compras"
+
     )
 
     st.dataframe(
@@ -696,7 +637,9 @@ elif pagina == "📅 Histórico":
     st.divider()
 
     st.subheader(
+
         "🛒 Produtos Comprados"
+
     )
 
     st.dataframe(
@@ -716,24 +659,28 @@ elif pagina == "📅 Histórico":
 
         "🗑 Limpar Todo Histórico",
 
-        use_container_width=True,
-
-        key="btn_limpar_historico"
+        use_container_width=True
 
     ):
 
         cursor.execute(
+
             "DELETE FROM historico"
+
         )
 
         cursor.execute(
+
             "DELETE FROM compras"
+
         )
 
         conn.commit()
 
         st.success(
+
             "Histórico apagado com sucesso!"
+
         )
 
         st.rerun()
@@ -746,6 +693,6 @@ st.divider()
 
 st.caption(
 
-    "🛒 Lista de Compras • Python + Streamlit + SQLite"
+    "🛒 Sistema de Lista de Compras com SQLite"
 
 )
