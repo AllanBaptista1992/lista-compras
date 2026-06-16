@@ -28,7 +28,7 @@ st.markdown(
 /* Espaçamento */
 .block-container{
 
-    padding-top:1rem;
+    padding-top:8rem;
 
     padding-bottom:1rem;
 
