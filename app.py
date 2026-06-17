@@ -50,12 +50,12 @@ st.markdown(
 
     border-radius:15px;
 
-    padding:15px;
+    padding:5px;
 
 }
 
 /* Celular */
-@media (max-width:768px){
+@media (max-width:468px){
 
     .block-container{
 
@@ -63,9 +63,30 @@ st.markdown(
 
         padding-right:0.5rem;
 
+        
+
     }
 
 }
+
+/* Diminui a largura da barra lateral */
+    section[data-testid="stSidebar"]{
+        width: 230px !important;
+        min-width: 230px !important;
+    }
+
+    /* Aumenta a fonte do menu lateral */
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] div[data-baseweb="radio"] label{
+        font-size: 18px !important;
+    }
+
+    /* Título da sidebar */
+    section[data-testid="stSidebar"] h1{
+        font-size: 24px !important;
+    }
+
 
 </style>
 """,
@@ -175,44 +196,44 @@ with st.sidebar:
 
     st.divider()
 
-    tema = st.selectbox(
+    # tema = st.selectbox(
 
-        "🎨 Tema",
+    #     "🎨 Tema",
 
-        [
+    #     [
 
-            "Claro",
+    #         "Claro",
 
-            "Escuro"
+    #         "Escuro"
 
-        ]
+    #     ]
 
-    )
+    # )
 
 # =====================================
 # TEMA ESCURO
 # =====================================
-if tema == "Escuro":
+# if tema == "Escuro":
 
-    st.markdown(
+#     st.markdown(
 
-        """
-        <style>
+#         """
+#         <style>
 
-        .stApp{
+#         .stApp{
 
-            background-color:#0E1117;
+#             background-color:#0E1117;
 
-            color:white;
+#             color:white;
 
-        }
+#         }
 
-        </style>
-        """,
+#         </style>
+#         """,
 
-        unsafe_allow_html=True
+#         unsafe_allow_html=True
 
-    )
+#     )
 
 
 # =====================================
@@ -304,73 +325,208 @@ if pagina == "🛒 Lista de Compras":
     st.divider()
 
     # =====================================
-    # TABELA
+# TABELA
+# =====================================
+if st.session_state.compras:
+
+    st.subheader("Produtos Adicionados")
+
+    # Cria DataFrame
+    df_compras = pd.DataFrame(
+        st.session_state.compras
+    )
+
+    # Adiciona coluna de seleção no final
+    df_compras["Excluir"] = False
+
+    # Exibe tabela editável
+    df_editado = st.data_editor(
+
+        df_compras,
+
+        hide_index=True,
+
+        use_container_width=True,
+
+        column_config={
+
+            "Produto": st.column_config.TextColumn(
+                "Produto"
+            ),
+
+            "Quantidade": st.column_config.NumberColumn(
+                "Qtde"
+            ),
+
+            "Valor Unitário": st.column_config.NumberColumn(
+                "Valor Unit.",
+                format="R$ %.2f"
+            ),
+
+            "Total Produto": st.column_config.NumberColumn(
+                "Total",
+                format="R$ %.2f"
+            ),
+
+            "Excluir": st.column_config.CheckboxColumn(
+                "☑"
+            )
+
+        }
+
+    )
+
+    # Total geral
+    total_geral = df_compras["Total Produto"].sum()
+
+    st.subheader(
+        f"💰 Total da Compra: R$ {total_geral:.2f}"
+    )
+
+    col1, col2, col3 = st.columns(3)
+
     # =====================================
-    if st.session_state.compras:
+    # EXCLUIR SELECIONADOS
+    # =====================================
+    with col1:
 
-        st.subheader(
-            "Produtos Adicionados"
-        )
+        if st.button(
 
-        h1, h2, h3, h4, h5, h6 = st.columns(
-            [3, 1, 1.5, 1.5, 0.7, 0.7]
-        )
+            "🗑 Excluir Selecionados",
 
-        h1.markdown("**Produto**")
-        h2.markdown("**Qtde**")
-        h3.markdown("**Valor Unit.**")
-        h4.markdown("**Total**")
-        h6.markdown("**❌**")
+            use_container_width=True,
 
-        st.divider()
+            key="btn_excluir_selecionados"
 
-        total_geral = 0
-
-        for i, item in enumerate(
-            st.session_state.compras
         ):
 
-            total_geral += item[
-                "Total Produto"
+            df_restante = df_editado[
+                ~df_editado["Excluir"]
             ]
 
-            c1, c2, c3, c4, c5 = st.columns(
-                [3, 1, 1.5, 1.5, 1.5]
+            df_restante = df_restante.drop(
+                columns=["Excluir"]
             )
 
-            c1.write(
-                item["Produto"]
+            st.session_state.compras = (
+                df_restante.to_dict(
+                    orient="records"
+                )
             )
 
-            c2.write(
-                item["Quantidade"]
+            st.rerun()
+
+    # =====================================
+    # LIMPAR LISTA
+    # =====================================
+    with col2:
+
+        limpar_lista = st.button(
+
+            "🧹 Limpar Lista",
+
+            use_container_width=True,
+
+            key="btn_limpar_lista"
+
+        )
+
+        if limpar_lista:
+
+            st.session_state.compras = []
+
+            st.rerun()
+
+    # =====================================
+    # FINALIZAR COMPRA
+    # =====================================
+    with col3:
+
+        finalizar_compra = st.button(
+
+            "✅ Finalizar Compra",
+
+            use_container_width=True,
+
+            key="btn_finalizar"
+
+        )
+
+    # =====================================
+    # SALVAR NO SQLITE
+    # =====================================
+    if finalizar_compra:
+
+        data_atual = datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
+        for item in st.session_state.compras:
+
+            cursor.execute(
+
+                """
+                INSERT INTO compras
+                (
+                    data,
+                    produto,
+                    quantidade,
+                    valor_unitario,
+                    total_produto
+                )
+
+                VALUES
+                (?, ?, ?, ?, ?)
+                """,
+
+                (
+
+                    data_atual,
+
+                    item["Produto"],
+
+                    item["Quantidade"],
+
+                    item["Valor Unitário"],
+
+                    item["Total Produto"]
+
+                )
+
             )
 
-            c3.write(
-                f'R$ {item["Valor Unitário"]:.2f}'
+        cursor.execute(
+
+            """
+            INSERT INTO historico
+            (
+                data,
+                total_compra
             )
 
-            c4.write(
-                f'R$ {item["Total Produto"]:.2f}'
+            VALUES
+            (?, ?)
+            """,
+
+            (
+
+                data_atual,
+
+                total_geral
+
             )
 
-            with c5:
+        )
 
-                if st.button(
+        conn.commit()
 
-                    "❌",
+        st.session_state.compras = []
 
-                    key=f"excluir_{i}"
+        st.success(
+            "Compra salva com sucesso!"
+        )
 
-                ):
-
-                    st.session_state.compras.pop(
-                        i
-                    )
-
-                    st.rerun()
-
-            st.divider()
+        st.rerun()
 
         st.subheader(
 
@@ -413,81 +569,81 @@ if pagina == "🛒 Lista de Compras":
 
             st.rerun()
 
-        # =====================================
-        # FINALIZAR COMPRA
-        # =====================================
-        if finalizar_compra:
+    # =====================================
+    # FINALIZAR COMPRA
+    # =====================================
+    if finalizar_compra:
 
-            data_atual = datetime.now().strftime(
-                "%d/%m/%Y"
-            )
+        data_atual = datetime.now().strftime(
+            "%d/%m/%Y"
+        )
 
-            for item in st.session_state.compras:
-
-                cursor.execute(
-
-                    """
-                    INSERT INTO compras
-                    (
-                        data,
-                        produto,
-                        quantidade,
-                        valor_unitario,
-                        total_produto
-                    )
-
-                    VALUES
-                    (?, ?, ?, ?, ?)
-                    """,
-
-                    (
-
-                        data_atual,
-
-                        item["Produto"],
-
-                        item["Quantidade"],
-
-                        item["Valor Unitário"],
-
-                        item["Total Produto"]
-
-                    )
-
-                )
+        for item in st.session_state.compras:
 
             cursor.execute(
 
                 """
-                INSERT INTO historico
+                INSERT INTO compras
                 (
                     data,
-                    total_compra
+                    produto,
+                    quantidade,
+                    valor_unitario,
+                    total_produto
                 )
 
                 VALUES
-                (?, ?)
+                (?, ?, ?, ?, ?)
                 """,
 
                 (
 
                     data_atual,
 
-                    total_geral
+                    item["Produto"],
+
+                    item["Quantidade"],
+
+                    item["Valor Unitário"],
+
+                    item["Total Produto"]
 
                 )
 
             )
 
-            conn.commit()
+        cursor.execute(
 
-            st.session_state.compras = []
-
-            st.success(
-                "Compra salva com sucesso!"
+            """
+            INSERT INTO historico
+            (
+                data,
+                total_compra
             )
 
-            st.rerun()
+            VALUES
+            (?, ?)
+            """,
+
+            (
+
+                data_atual,
+
+                total_geral
+
+            )
+
+        )
+
+        conn.commit()
+
+        st.session_state.compras = []
+
+        st.success(
+            "Compra salva com sucesso!"
+        )
+
+        st.rerun()
 
 # =====================================
 # DASHBOARD
@@ -515,11 +671,7 @@ elif pagina == "📊 Dashboard":
     else:
 
         historico["data"] = pd.to_datetime(
-
-            historico["data"],
-
-            format="%d/%m/%Y"
-
+            historico["data"]
         )
 
         hoje = datetime.now().date()
@@ -674,13 +826,27 @@ elif pagina == "📅 Histórico":
 
     )
 
-    compras = pd.read_sql_query(
-
-        "SELECT * FROM compras",
-
-        conn
-
+    historico["data"] = pd.to_datetime(
+    historico["data"]
     )
+
+    historico["data"] = historico["data"].dt.strftime(
+        "%d/%m/%Y"
+    )
+
+    compras = pd.read_sql_query(
+    "SELECT * FROM compras",
+    conn
+    )
+
+    compras["data"] = pd.to_datetime(
+        compras["data"]
+    )
+
+    compras["data"] = compras["data"].dt.strftime(
+        "%d/%m/%Y"
+    )
+
 
     st.subheader(
         "💰 Histórico das Compras"
