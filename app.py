@@ -20,9 +20,7 @@ st.set_page_config(
 # =====================================
 # CSS
 # =====================================
-# =====================================
-# CSS
-# =====================================
+
 st.markdown(
     """
     <style>
@@ -79,13 +77,13 @@ st.markdown(
 
     section[data-testid="stSidebar"] div[data-baseweb="radio"] label{
 
-        font-size:20px !important;
+        font-size:15px !important;
 
     }
 
     section[data-testid="stSidebar"] h1{
 
-        font-size:26px !important;
+        font-size:20px !important;
     }
 
     /* Botões */
@@ -155,6 +153,7 @@ cursor.execute(
 
     )
 
+
     """
 
 )
@@ -180,6 +179,19 @@ cursor.execute(
 
 )
 
+cursor.execute(
+    """
+    CREATE TABLE IF NOT EXISTS lista_atual (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        produto TEXT,
+        quantidade INTEGER,
+        valor_unitario REAL,
+        total_produto REAL
+    )
+    """
+)
+
+
 conn.commit()
 
 # =====================================
@@ -187,7 +199,24 @@ conn.commit()
 # =====================================
 if "compras" not in st.session_state:
 
-    st.session_state.compras = []
+    df_lista = pd.read_sql_query(
+
+        "SELECT * FROM lista_atual",
+
+        conn
+
+    )
+
+    if df_lista.empty:
+
+        st.session_state.compras = []
+
+    else:
+
+        st.session_state.compras = df_lista.to_dict(
+            "records"
+        )
+
 
 if "form_key" not in st.session_state:
 
@@ -267,13 +296,12 @@ if pagina == "🛒 Lista de Compras":
             valor_unitario = st.number_input(
 
                 "Valor Unitário (R$)",
-
-                min_value=0.0,
-
-                format="%.2f"
+                format="%.2f",
+                value=None
 
             )
 
+            
         adicionar_produto = st.form_submit_button(
 
             "➕ Adicionar Produto",
@@ -556,6 +584,44 @@ if pagina == "🛒 Lista de Compras":
                     total_geral
 
                 )
+
+            )
+
+            cursor.execute(
+
+                """
+                INSERT INTO lista_atual
+                (
+                    produto,
+                    quantidade,
+                    valor_unitario,
+                    total_produto
+                )
+
+                VALUES
+                (?, ?, ?, ?)
+                """,
+ 
+                (
+                    item["Produto"],
+
+                    item["Quantidade"],
+
+                    item["Valor Unitário"],
+
+                    item["Total Produto"]
+
+
+                )
+
+            )
+
+
+            conn.commit()
+
+            cursor.execute(
+
+                "DELETE FROM lista_atual"
 
             )
 
