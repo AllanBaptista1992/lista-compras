@@ -28,7 +28,11 @@ st.markdown(
 /* Espaçamento */
 .block-container{
 
+<<<<<<< HEAD
     padding-top:8rem;
+=======
+    padding-top:1rem;
+>>>>>>> 65a588c (Melhorias na interface e responsividade)
 
     padding-bottom:1rem;
 
@@ -50,12 +54,20 @@ st.markdown(
 
     border-radius:15px;
 
+<<<<<<< HEAD
     padding:5px;
+=======
+    padding:15px;
+>>>>>>> 65a588c (Melhorias na interface e responsividade)
 
 }
 
 /* Celular */
+<<<<<<< HEAD
 @media (max-width:468px){
+=======
+@media (max-width:768px){
+>>>>>>> 65a588c (Melhorias na interface e responsividade)
 
     .block-container{
 
@@ -63,12 +75,16 @@ st.markdown(
 
         padding-right:0.5rem;
 
+<<<<<<< HEAD
         
 
+=======
+>>>>>>> 65a588c (Melhorias na interface e responsividade)
     }
 
 }
 
+<<<<<<< HEAD
 /* Diminui a largura da barra lateral */
     section[data-testid="stSidebar"]{
         width: 230px !important;
@@ -88,6 +104,8 @@ st.markdown(
     }
 
 
+=======
+>>>>>>> 65a588c (Melhorias na interface e responsividade)
 </style>
 """,
 
@@ -196,6 +214,7 @@ with st.sidebar:
 
     st.divider()
 
+<<<<<<< HEAD
     # tema = st.selectbox(
 
     #     "🎨 Tema",
@@ -209,10 +228,26 @@ with st.sidebar:
     #     ]
 
     # )
+=======
+    tema = st.selectbox(
+
+        "🎨 Tema",
+
+        [
+
+            "Claro",
+
+            "Escuro"
+
+        ]
+
+    )
+>>>>>>> 65a588c (Melhorias na interface e responsividade)
 
 # =====================================
 # TEMA ESCURO
 # =====================================
+<<<<<<< HEAD
 # if tema == "Escuro":
 
 #     st.markdown(
@@ -235,6 +270,29 @@ with st.sidebar:
 
 #     )
 
+=======
+if tema == "Escuro":
+
+    st.markdown(
+
+        """
+        <style>
+
+        .stApp{
+
+            background-color:#0E1117;
+
+            color:white;
+
+        }
+
+        </style>
+        """,
+
+        unsafe_allow_html=True
+
+    )
+>>>>>>> 65a588c (Melhorias na interface e responsividade)
 
 # =====================================
 # LISTA DE COMPRAS
@@ -325,6 +383,7 @@ if pagina == "🛒 Lista de Compras":
     st.divider()
 
     # =====================================
+<<<<<<< HEAD
 # TABELA
 # =====================================
 if st.session_state.compras:
@@ -527,6 +586,75 @@ if st.session_state.compras:
         )
 
         st.rerun()
+=======
+    # TABELA
+    # =====================================
+    if st.session_state.compras:
+
+        st.subheader(
+            "Produtos Adicionados"
+        )
+
+        h1, h2, h3, h4, h5, h6 = st.columns(
+            [3, 1, 1.5, 1.5, 0.7, 0.7]
+        )
+
+        h1.markdown("**Produto**")
+        h2.markdown("**Qtde**")
+        h3.markdown("**Valor Unit.**")
+        h4.markdown("**Total**")
+        h5.markdown("**❌**")
+
+        st.divider()
+
+        total_geral = 0
+
+        for i, item in enumerate(
+            st.session_state.compras
+        ):
+
+            total_geral += item[
+                "Total Produto"
+            ]
+
+            c1, c2, c3, c4, c5 = st.columns(
+                [3, 1, 1.5, 1.5, 1.5]
+            )
+
+            c1.write(
+                item["Produto"]
+            )
+
+            c2.write(
+                item["Quantidade"]
+            )
+
+            c3.write(
+                f'R$ {item["Valor Unitário"]:.2f}'
+            )
+
+            c4.write(
+                f'R$ {item["Total Produto"]:.2f}'
+            )
+
+            with c5:
+
+                if st.button(
+
+                    "❌",
+
+                    key=f"excluir_{i}"
+
+                ):
+
+                    st.session_state.compras.pop(
+                        i
+                    )
+
+                    st.rerun()
+
+            st.divider()
+>>>>>>> 65a588c (Melhorias na interface e responsividade)
 
         st.subheader(
 
@@ -568,6 +696,7 @@ if st.session_state.compras:
             st.session_state.compras = []
 
             st.rerun()
+<<<<<<< HEAD
 
     # =====================================
     # FINALIZAR COMPRA
@@ -644,6 +773,84 @@ if st.session_state.compras:
         )
 
         st.rerun()
+=======
+
+        # =====================================
+        # FINALIZAR COMPRA
+        # =====================================
+        if finalizar_compra:
+
+            data_atual = datetime.now().strftime(
+                "%d/%m/%Y"
+            )
+
+            for item in st.session_state.compras:
+
+                cursor.execute(
+
+                    """
+                    INSERT INTO compras
+                    (
+                        data,
+                        produto,
+                        quantidade,
+                        valor_unitario,
+                        total_produto
+                    )
+
+                    VALUES
+                    (?, ?, ?, ?, ?)
+                    """,
+
+                    (
+
+                        data_atual,
+
+                        item["Produto"],
+
+                        item["Quantidade"],
+
+                        item["Valor Unitário"],
+
+                        item["Total Produto"]
+
+                    )
+
+                )
+
+            cursor.execute(
+
+                """
+                INSERT INTO historico
+                (
+                    data,
+                    total_compra
+                )
+
+                VALUES
+                (?, ?)
+                """,
+
+                (
+
+                    data_atual,
+
+                    total_geral
+
+                )
+
+            )
+
+            conn.commit()
+
+            st.session_state.compras = []
+
+            st.success(
+                "Compra salva com sucesso!"
+            )
+
+            st.rerun()
+>>>>>>> 65a588c (Melhorias na interface e responsividade)
 
 # =====================================
 # DASHBOARD
